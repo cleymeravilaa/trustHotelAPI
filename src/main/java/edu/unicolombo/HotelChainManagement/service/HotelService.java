@@ -5,6 +5,7 @@ import edu.unicolombo.HotelChainManagement.domain.model.EmployeeType;
 import edu.unicolombo.HotelChainManagement.domain.model.Hotel;
 import edu.unicolombo.HotelChainManagement.domain.repository.EmployeeRepository;
 import edu.unicolombo.HotelChainManagement.domain.repository.HotelRepository;
+import edu.unicolombo.HotelChainManagement.dto.hotel.ChangeDirectorDTO;
 import edu.unicolombo.HotelChainManagement.dto.hotel.HotelDTO;
 import edu.unicolombo.HotelChainManagement.dto.hotel.RegisterNewHotelDTO;
 import edu.unicolombo.HotelChainManagement.dto.hotel.UpdateHotelDTO;
@@ -14,7 +15,6 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.stream.Collectors;
 import java.util.List;
 
 @Service
@@ -33,12 +33,7 @@ public class HotelService {
         hotel.setPhone(data.phone());
         hotel.setCategory(data.category());
 
-        // El director se asigna después de crear el hotel si se proporciona
         Hotel savedHotel = hotelRepository.save(hotel);
-//
-//        if (hotelDTO.directorId() != null) {
-//            assignDirector(savedHotel.getId(), hotelDTO.directorId());
-//        }
 
         return new HotelDTO(savedHotel);
     }
@@ -68,73 +63,34 @@ public class HotelService {
         hotelRepository.delete(hotel);
     }
 
-    public HotelDTO updateHotel(Long hotelId, UpdateHotelDTO data) {
+    public HotelDTO updateHotel(long hotelId, UpdateHotelDTO data) {
         Hotel hotel = hotelRepository.findById(hotelId)
                 .orElseThrow(() -> new EntityNotFoundException("Hotel no encontrado"));
+
+        System.out.println("Hotel encontrado: "+ hotel.getName());
 
         hotel.setName(data.name());
         hotel.setAddress(data.address());
         hotel.setPhone(data.phone());
         hotel.setCategory(data.category());
 
-        // Manejo especial para el director si cambia
-        if (data.directorId() != null &&
-                (hotel.getDirector() == null || !hotel.getDirector().getEmployeeId().equals(data.directorId()))) {
-            assignDirector(hotelId, data.directorId());
-        } else if (data.directorId() == null && hotel.getDirector() != null) {
-            removeDirector(hotelId);
-        }
         Hotel updatedHotel = hotelRepository.save(hotel);
         return new HotelDTO(updatedHotel);
     }
 
-    public void assignDirector(Long hotelId, Long employeeId) {
-        Hotel hotel = hotelRepository.findById(hotelId)
-                .orElseThrow(() -> new EntityNotFoundException("Hotel no encontrado"));
+    public HotelDTO changeDirector(ChangeDirectorDTO data) {
+        Hotel hotel = hotelRepository.getReferenceById(data.hotelId());
+        Employee director = employeeRepository.getReferenceById(data.directorId());
 
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new EntityNotFoundException("Empleado no encontrado"));
-
-        // Validar que el empleado no sea director en otro hotel
-        if (employee.getType() == EmployeeType.DIRECTOR &&
-                employee.getHotel() != null &&
-                !employee.getHotel().getHotelId().equals(hotelId)) {
-            throw new BusinessLogicValidationException("Este empleado ya es director de otro hotel");
+        if (!director.getType().equals(EmployeeType.DIRECTOR)){
+            throw new BusinessLogicValidationException("No se puede realizar la operacion el empleado no es de tipo director");
         }
 
-        // Si el hotel ya tiene director, desvincularlo primero
-        if (hotel.getDirector() != null) {
-            removeDirector(hotelId);
-        }
+        director.getHotel().setDirector(null);
+        hotel.setDirector(director);
+        director.setHotel(hotel);
 
-        // Actualizar relaciones bidireccionales
-        employee.setType(EmployeeType.DIRECTOR);
-        employee.setHotel(hotel);
-        hotel.setDirector(employee);
-
-        // Remover de la lista de empleados si estaba allí
-        hotel.getEmployees().remove(employee);
-
-        hotelRepository.save(hotel);
-        employeeRepository.save(employee);
-    }
-
-    public void removeDirector(Long hotelId) {
-        Hotel hotel = hotelRepository.findById(hotelId)
-                .orElseThrow(() -> new EntityNotFoundException("Hotel no encontrado"));
-
-        if (hotel.getDirector() == null) {
-            return;
-        }
-
-        Employee director = hotel.getDirector();
-        director.setType(EmployeeType.CLEANING); // Cambiar a otro rol
-        hotel.setDirector(null);
-
-        // Agregar a la lista general de empleados
-        hotel.getEmployees().add(director);
-
-        hotelRepository.save(hotel);
         employeeRepository.save(director);
+        return new HotelDTO(hotelRepository.save(hotel));
     }
 }

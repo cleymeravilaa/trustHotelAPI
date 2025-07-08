@@ -8,7 +8,7 @@ public enum RoomType {
     DOUBLE("DOBLE"),
     TRIPLE("TRIPLE"),
     SUITE("SUITE"),
-    STANDAR("ESTANDAR"),
+    STANDARD("ESTANDAR"),
     FAMILY("FAMILIAR");
 
     private final String displayName;

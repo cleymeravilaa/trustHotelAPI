@@ -5,6 +5,7 @@ import edu.unicolombo.HotelChainManagement.domain.model.EmployeeType;
 import edu.unicolombo.HotelChainManagement.domain.model.Hotel;
 import edu.unicolombo.HotelChainManagement.domain.repository.EmployeeRepository;
 import edu.unicolombo.HotelChainManagement.domain.repository.HotelRepository;
+import edu.unicolombo.HotelChainManagement.dto.employee.ChangeHotelDTO;
 import edu.unicolombo.HotelChainManagement.dto.employee.EmployeeDTO;
 import edu.unicolombo.HotelChainManagement.dto.employee.RegisterNewEmployeeDTO;
 import edu.unicolombo.HotelChainManagement.dto.employee.UpdateEmployeeDTO;
@@ -29,24 +30,20 @@ public class EmployeeService {
         Hotel hotel = hotelRepository.findById(data.hotelId())
                 .orElseThrow(() -> new EntityNotFoundException("Hotel no encontrado"));
 
-        Employee employee = new Employee();
-        employee.setName(data.name());
-        employee.setAddress(data.address());
-        employee.setType(data.type());
-        employee.setHotel(hotel);
-        employee.setDni(data.dni());
-
-        // Lógica específica para directores
-        if (data.type() == EmployeeType.DIRECTOR) {
-            if (hotel.getDirector() != null) {
-                throw new BusinessLogicValidationException("El hotel ya tiene un director asignado");
+        Employee savedEmployee = null;
+        if (data.type().equals(EmployeeType.DIRECTOR)){
+            if (hotel.getDirector() != null){
+                throw new BusinessLogicValidationException("No se puede asignar un director a este hotel");
             }
-            hotel.setDirector(employee);
+            savedEmployee  = employeeRepository.save(new Employee(data));
+            hotel.setDirector(savedEmployee);
         } else {
-            hotel.getEmployees().add(employee);
+            savedEmployee  = employeeRepository.save(new Employee(data));
+            hotel.getEmployees().add(savedEmployee);
         }
-
-        Employee savedEmployee = employeeRepository.save(employee);
+        savedEmployee.setHotel(hotel);
+        savedEmployee = employeeRepository.save(savedEmployee);
+        hotelRepository.save(hotel);
         return new EmployeeDTO(savedEmployee);
     }
 
@@ -92,72 +89,49 @@ public class EmployeeService {
         Employee  employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EntityNotFoundException("Empleado no encontrado"));
 
-        // 1. Manejo de cambio de hotel si es necesario
-        handleHotelChange(employee, data);
+        if (!data.type().equals(employee.getType())){
+            if (employee.getType().equals(EmployeeType.DIRECTOR)){
+                employee.getHotel().setDirector(null);
+                employee.setType(data.type());
+            } else {
+                if(data.type().equals(EmployeeType.DIRECTOR)){
+                    if (employee.getHotel().getDirector() != null){
+                        throw new BusinessLogicValidationException("No se puede colocar el empleado como director");
+                    }
+                    employee.setType(EmployeeType.DIRECTOR);
+                    employee.getHotel().setDirector(employee);
+                }
+                employee.setType(data.type());
+            }
+        }
 
-        // 2. Manejar cambio de tipo (rol) si es necesario
-        handleTypeChange(employee, data);
+        if (!data.name().equals(employee.getName())){
+            employee.setName(data.name());
+        }
 
-        // 3. Actualizar datos básicos
-        employee.setName(data.name());
-        employee.setAddress(data.address());
-
+        if (!data.address().equals(employee.getAddress())){
+            employee.setAddress(data.address());
+        }
         // 4. Guardar cambios
         Employee updatedEmployee = employeeRepository.save(employee);
         return new EmployeeDTO(updatedEmployee);
     }
 
-    private void handleHotelChange(Employee employee, UpdateEmployeeDTO data) {
-        if (data.hotelId() == null || data.hotelId().equals(employee.getHotel().getHotelId())) {
-            return; // No hay cambio de hotel
-        }
+    @Transactional
+    public EmployeeDTO changeHotel(ChangeHotelDTO data){
+        Employee employee = employeeRepository.getReferenceById(data.employeeId());
+        Hotel hotel = hotelRepository.getReferenceById(data.hotelToChangeId());
 
-        Hotel newHotel = hotelRepository.findById(data.hotelId())
-                .orElseThrow(() -> new EntityNotFoundException("Hotel no encontrado"));
-
-        // Remover empleado del hotel actual
-        if (employee.getHotel() != null) {
-            employee.getHotel().getEmployees().remove(employee);
-            if (employee.getType() == EmployeeType.DIRECTOR) {
-                employee.getHotel().setDirector(null);
+        if (employee.getType().equals(EmployeeType.DIRECTOR)){
+            throw new BusinessLogicValidationException("No se puede realizar el cambio de hotel. El empleado es de tipo director");
+        } else {
+            if (!employee.getHotel().equals(hotel)){
+                employee.getHotel().getEmployees().remove(null);
+                hotel.getEmployees().add(employee);
+                employee.setHotel(hotel);
             }
         }
-
-        // Asignar al nuevo hotel
-        employee.setHotel(newHotel);
-        newHotel.getEmployees().add(employee);
-
-        // Si es director, asignar como director del nuevo hotel
-        if (employee.getType() == EmployeeType.DIRECTOR) {
-            if (newHotel.getDirector() != null) {
-                throw new BusinessLogicValidationException("El hotel ya tiene un director");
-            }
-            newHotel.setDirector(employee);
-        }
-    }
-
-    private void handleTypeChange(Employee employee, UpdateEmployeeDTO data) {
-        if (data.type() == employee.getType()) {
-            return; // No hay cambio de tipo
-        }
-
-        // Cambio de DIRECTOR a otro rol
-        if (employee.getType() == EmployeeType.DIRECTOR) {
-            Hotel currentHotel = employee.getHotel();
-            currentHotel.setDirector(null);
-            // El empleado sigue en la lista de empleados del hotel
-        }
-
-        // Cambio a DIRECTOR desde otro rol
-        if (data.type() == EmployeeType.DIRECTOR) {
-            Hotel currentHotel = employee.getHotel();
-            if (currentHotel.getDirector() != null) {
-                throw new BusinessLogicValidationException("El hotel ya tiene un director");
-            }
-            currentHotel.setDirector(employee);
-            currentHotel.getEmployees().remove(employee); // Director no está en la lista de empleados
-        }
-
-        employee.setType(data.type());
+        hotelRepository.save(hotel);
+        return new EmployeeDTO(employeeRepository.save(employee));
     }
 }

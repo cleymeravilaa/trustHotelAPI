@@ -2,6 +2,7 @@ package edu.unicolombo.HotelChainManagement.controller;
 
 import edu.unicolombo.HotelChainManagement.domain.repository.EmployeeRepository;
 import edu.unicolombo.HotelChainManagement.domain.repository.HotelRepository;
+import edu.unicolombo.HotelChainManagement.dto.hotel.ChangeDirectorDTO;
 import edu.unicolombo.HotelChainManagement.dto.hotel.HotelDTO;
 import edu.unicolombo.HotelChainManagement.dto.hotel.RegisterNewHotelDTO;
 import edu.unicolombo.HotelChainManagement.dto.hotel.UpdateHotelDTO;
@@ -53,7 +54,14 @@ public class HotelController {
 
     @PutMapping("/{hotelId}")
     @Transactional
-    public ResponseEntity<HotelDTO> updateHotel(@PathVariable Long hotelId, @RequestBody UpdateHotelDTO data) {
+    public ResponseEntity<HotelDTO> updateHotel(@PathVariable long hotelId, @RequestBody UpdateHotelDTO data) {
+        System.out.println("Se realizará la actualizacion de hotel");
         return ResponseEntity.ok(hotelService.updateHotel(hotelId, data));
+    }
+
+    @PutMapping("/change-director")
+    @Transactional
+    public ResponseEntity<HotelDTO> changeDirector(@RequestBody ChangeDirectorDTO data){
+        return ResponseEntity.ok(hotelService.changeDirector(data));
     }
 }

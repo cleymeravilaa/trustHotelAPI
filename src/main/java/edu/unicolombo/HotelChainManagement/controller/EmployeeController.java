@@ -1,5 +1,6 @@
 package edu.unicolombo.HotelChainManagement.controller;
 
+import edu.unicolombo.HotelChainManagement.dto.employee.ChangeHotelDTO;
 import edu.unicolombo.HotelChainManagement.dto.employee.EmployeeDTO;
 import edu.unicolombo.HotelChainManagement.dto.employee.RegisterNewEmployeeDTO;
 import edu.unicolombo.HotelChainManagement.dto.employee.UpdateEmployeeDTO;
@@ -54,5 +55,11 @@ public class EmployeeController {
     @Transactional
     public ResponseEntity<EmployeeDTO> updateEmployee(@PathVariable long employeeId,@RequestBody UpdateEmployeeDTO data){
         return ResponseEntity.ok(employeeService.updateEmployee(employeeId, data));
+    }
+
+    @PutMapping("/change-hotel")
+    @Transactional
+    public ResponseEntity<EmployeeDTO> changeHotel(@RequestBody ChangeHotelDTO data){
+        return ResponseEntity.ok(employeeService.changeHotel(data));
     }
 }

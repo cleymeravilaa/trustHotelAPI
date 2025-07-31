@@ -42,4 +42,8 @@ public class CustomerService {
         customer.updateData(data);
         return new CustomerDTO(customerRepository.save(customer));
     }
+
+    public CustomerDTO getCustomerByDni(String customerDni) {
+        return new CustomerDTO(customerRepository.getCustomerByDni(customerDni));
+    }
 }

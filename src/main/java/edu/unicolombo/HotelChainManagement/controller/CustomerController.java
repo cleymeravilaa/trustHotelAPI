@@ -37,6 +37,10 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.getCustomerById(customerId));
     }
 
+    @GetMapping("/dni/{customerDni}")
+    public ResponseEntity<CustomerDTO> getCustomerByDNI(@PathVariable String customerDni){
+        return ResponseEntity.ok(customerService.getCustomerByDni(customerDni));
+    }
     @DeleteMapping("/{customerId}")
     @Transactional
     public ResponseEntity<Void> deleteCustomer(@PathVariable long customerId) {
